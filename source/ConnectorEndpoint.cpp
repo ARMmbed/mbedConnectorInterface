@@ -237,21 +237,23 @@ bool Endpoint::initializeStorage() {
 	// initialize mbed-trace
 	mbed_trace_init();
 	
+	// initialize FCC
+	fcc_status_e status = fcc_init();
+	if(status != FCC_STATUS_SUCCESS) {
+		this->logger()->log("initializeStorage: ERROR: mfcc_init failed with status=%d...", status);
+		return false;
+	}
+
+	#ifdef MBED_RESET_STORAGE
 	// Resets storage to an empty state.
 	// Use this function when you want to clear SD card from all the factory-tool generated data and user data.
 	// After this operation device must be injected again by using factory tool or developer certificate.
-#ifdef MBED_RESET_STORAGE
     this->logger()->log("initializeStorage: Resetting storage to an empty state...");
     fcc_status_e delete_status = fcc_storage_delete();
     if (delete_status != FCC_STATUS_SUCCESS) {
         this->logger()->log("initializeStorage: Failed to reset storage to an empty state. status=%d (OK)...", delete_status);
     }
-#endif
-    fcc_status_e status = fcc_init();
-    if(status != FCC_STATUS_SUCCESS) {
-        this->logger()->log("initializeStorage: ERROR: mfcc_init failed with status=%d...", status);
-        return false;
-    }
+	#endif
 #else
     // not enabled
     this->logger()->log("initializeStorage: storage initialize disabled (OK)...");

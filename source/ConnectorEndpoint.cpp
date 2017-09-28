@@ -20,7 +20,7 @@
  * limitations under the License.
  */
 
-// Lower level Network
+// Lower level Network interface
 #include "mbed-connector-interface/mbedEndpointNetwork.h"
 
 // ConnectorEndpoint

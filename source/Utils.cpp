@@ -38,6 +38,47 @@ Connector::Endpoint *__endpoint = NULL;
 Connector::OptionsBuilder config;
 Connector::Options *options = NULL;
 
+// only for mbed-cloud-client
+#ifdef ENABLE_MBED_CLOUD_SUPPORT
+	// Firmware path default
+	#define DEFAULT_FIRMWARE_PATH       "/sd/firmware"
+
+	// K64F uses the FATFS on the SDCard
+	#ifdef TARGET_K64F
+		// mbed-os: SD card driver and FAT filesystem support
+		#include "SDBlockDevice.h"
+		#include "FATFileSystem.h"
+
+		// SDCard and Fat filesystem device....
+		static SDBlockDevice sd(MBED_CONF_SD_SPI_MOSI,MBED_CONF_SD_SPI_MISO,MBED_CONF_SD_SPI_CLK,MBED_CONF_SD_SPI_CS);
+		static FATFileSystem fs("sd",&sd);
+
+	#endif // K64F
+
+#endif // mbed-cloud
+
+// initialize the underlying platform
+bool utils_init_platform() {
+// only for mbed-cloud-client
+#ifdef ENABLE_MBED_CLOUD_SUPPORT
+
+	// K64F must initialize the SDCard and FATFS driver...
+	#ifdef TARGET_K64F
+		logger.log("utils_init_platform(K64F): initializing SDCard and FATFS drivers...");
+		int sd_ret = sd.init();
+		if(sd_ret != BD_ERROR_OK) {
+			logger.log("utils_init_platform(K64F): sd.init() failed with %d\n", sd_ret);
+			return false;
+		}
+	#endif // K64F
+
+#endif // mbed-cloud
+
+	// platform is initialized
+	logger.log("utils_init_platform(): platform initialized");
+	return true;
+}
+
 // initialize the Connector::Endpoint instance
 void *utils_init_endpoint(bool canActAsRouterNode) {
 	// alloc Endpoint

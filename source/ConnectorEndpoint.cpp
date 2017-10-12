@@ -34,14 +34,14 @@
 
 // factory storage and configurator support (mbed Cloud R1.2+)
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
-// trace configuration
-#include "mbed-trace/mbed_trace.h"
+	// trace configuration
+	#include "mbed-trace/mbed_trace.h"
 
-// updater support
-#include "update_ui_example.h"
+	// updater support
+	#include "update_ui_example.h"
 
-// factory flow support
-#include "factory_configurator_client.h"
+	// factory flow support
+	#include "factory_configurator_client.h"
 #endif
 
 // our endpoint instance
@@ -58,10 +58,8 @@ void Endpoint::plumbNetwork(void *device_manager, bool canActAsRouterNode) {
 	// create our endpoint instance...
 	if (__endpoint == NULL) {
 		// initialize our endpoint instance
-		printf(
-				"Connector::Endpoint::plumbNetwork: initializing endpoint instance...\r\n");
-		__endpoint = (Connector::Endpoint *) utils_init_endpoint(
-				canActAsRouterNode);
+		printf("Connector::Endpoint::plumbNetwork: initializing endpoint instance...\r\n");
+		__endpoint = (Connector::Endpoint *) utils_init_endpoint(canActAsRouterNode);
 	}
 
 	// make sure we have an endpoint...
@@ -69,14 +67,12 @@ void Endpoint::plumbNetwork(void *device_manager, bool canActAsRouterNode) {
 		// set the device manager
 		if (device_manager != NULL) {
 			// device manager has been supplied
-			printf(
-					"Connector::Endpoint::plumbNetwork: setting a device manager...\r\n");
+			printf("Connector::Endpoint::plumbNetwork: setting a device manager...\r\n");
 			__endpoint->setDeviceManager(device_manager);
 		}
 
 		// configure the endpoint...
-		printf(
-				"Connector::Endpoint::plumbNetwork: configuring endpoint...\r\n");
+		printf("Connector::Endpoint::plumbNetwork: configuring endpoint...\r\n");
 		utils_configure_endpoint((void *) __endpoint);
 
 		// plumb the endpoint's network...
@@ -95,23 +91,22 @@ void Endpoint::start() {
 		// make sure we have an endpoint interface before continuing...
 		if (__endpoint != NULL && __endpoint->getEndpointInterface() != NULL) {
 			// finalize the endpoint and start its main loop
-			printf(
-					"Endpoint::start: finalize and run the endpoint main loop..\r\n");
+			printf("Endpoint::start: finalize and run the endpoint main loop..\r\n");
 			net_finalize_and_run_endpoint_main_loop((void *) __endpoint);
-		} else {
+		}
+		else {
 			// not starting the endpoint due to errors
-			printf(
-					"Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint interface)... exiting...\r\n");
+			printf("Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint interface)... exiting...\r\n");
 
 			// end in error... 
 			while (true) {
 				Thread::wait(1000);
 			}
 		}
-	} else {
+	}
+	else {
 		// not starting the endpoint due to errors
-		printf(
-				"Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint)... exiting...\r\n");
+		printf("Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint)... exiting...\r\n");
 
 		// end in error... 
 		while (true) {
@@ -131,8 +126,7 @@ void Endpoint::setConnectionStatusInterface(ConnectionStatusInterface *csi) {
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
 Endpoint::Endpoint(const Logger *logger, const Options *options) : MbedCloudClientCallback(), M2MInterfaceObserver()
 #else
-Endpoint::Endpoint(const Logger *logger, const Options *options) :
-		M2MInterfaceObserver()
+Endpoint::Endpoint(const Logger *logger, const Options *options) : M2MInterfaceObserver()
 #endif
 {
 	this->m_logger = (Logger *) logger;
@@ -241,14 +235,20 @@ bool Endpoint::initializeStorage() {
 	// initialize mbed-trace
 	mbed_trace_init();
 
+	// initialize the underlying platform
+	this->logger()->log("initializeStorage: initializing underlying platform...");
+	if (utils_init_platform() != true) {
+	    this->logger()->log("initializeStorage: ERROR: initPlatform() failed!");
+	    return false;
+	}
+
 	// initialize FCC
 	fcc_status_e status = fcc_init();
-	if(status != FCC_STATUS_SUCCESS) {
+	if (status != FCC_STATUS_SUCCESS) {
 		this->logger()->log("initializeStorage: ERROR: mfcc_init failed with status=%d...", status);
 		return false;
 	}
-
-#ifdef MBED_RESET_STORAGE
+	#ifdef MBED_RESET_STORAGE
 	// Resets storage to an empty state.
 	// Use this function when you want to clear SD card from all the factory-tool generated data and user data.
 	// After this operation device must be injected again by using factory tool or developer certificate.
@@ -257,7 +257,7 @@ bool Endpoint::initializeStorage() {
 	if (delete_status != FCC_STATUS_SUCCESS) {
 		this->logger()->log("initializeStorage: Failed to reset storage to an empty state. status=%d (OK)...", delete_status);
 	}
-#endif
+	#endif
 #else
 	// not enabled
 	this->logger()->log("initializeStorage: storage initialize disabled (OK)...");

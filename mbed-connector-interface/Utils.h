@@ -26,6 +26,7 @@ extern void *utils_init_endpoint(bool canActAsRouterNode);
 extern void utils_configure_endpoint(void *p);
 extern void utils_build_endpoint(void *p);
 extern uint16_t extract_port_from_url(char *url,uint16_t default_port);
+extern bool utils_init_platform();
 
 #endif // __UTILS_H__
 

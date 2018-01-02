@@ -92,7 +92,7 @@
 #define MAX_VALUE_BUFFER_LENGTH  			1024                                        // largest "value" a dynamic resource may assume as a string (max CoAP packet length)
 
 // Logger buffer size
-#define LOGGER_BUFFER_LENGTH     		 	128                                         // largest single print of a given debug line
+#define LOGGER_BUFFER_LENGTH     		 	1024                                         // largest single print of a given debug line
 
 // WiFi Configuration
 #define WIFI_SSID_LENGTH         			64

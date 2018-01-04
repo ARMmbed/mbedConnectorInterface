@@ -29,12 +29,7 @@
 // Authenticator Support
 #include "mbed-connector-interface/Authenticator.h"
 
-// invocation handler signature
-typedef void (*initialize_fn)(const void *logger);
-typedef bool (*manifest_fn)(const void *ep,const void *logger,const void *manifest,uint32_t manifest_length);
-typedef bool (*image_set_fn)(const void *ep,const void *logger,const void *image,uint32_t image_length);   
-typedef bool (*responder_fn)(const void *ep,const void *logger,const void *data); 
-
+// DeviceManagement Responder 
 class DeviceManagementResponder {
     public:
         /**
@@ -61,42 +56,6 @@ class DeviceManagementResponder {
         */
         void setEndpoint(const void *ep);
         
-        /** 
-        Set our Initialize handler function
-        @param initialize_fn input the device initialize function pointer
-        */
-        void setInitializeHandler(initialize_fn initialize_fn);
-        
-        /** 
-        Set our Reboot Responder handler function
-        @param reboot_responder_fn input the device reboot responder function pointer
-        */
-        void setRebootResponderHandler(responder_fn reboot_responder_fn);
-        
-        /** 
-        Set our Reset Responder handler function
-        @param reset_responder_fn input the device reset responder function pointer
-        */
-        void setResetResponderHandler(responder_fn reset_responder_fn);
-        
-        /** 
-        Set our FOTA manifest handler function
-        @param fota_manifest_fn input the FOTA manifest handler function pointer
-        */
-        void setFOTAManifestHandler(manifest_fn fota_manifest_fn);
-        
-        /** 
-        Set our FOTA image set handler function
-        @param fota_image_set_fn input the FOTA image set function pointer
-        */
-        void setFOTAImageHandler(image_set_fn fota_image_set_fn);
-        
-        /** 
-        Set our FOTA invocation handler function
-        @param fota_invocation_fn input the FOTA invocation handler function pointer
-        */
-        void setFOTAInvocationHandler(responder_fn fota_invocation_fn);
-        
         /**
         ACTION: Deregister device
         @param challenge input the input authentication challenge
@@ -109,71 +68,10 @@ class DeviceManagementResponder {
         */
         virtual void rebootDevice(const void *challenge);
         
-        /**
-        ACTION: Reset device 
-        @param challenge input the input authentication challenge
-        */
-        virtual void resetDevice(const void *challenge);
-        
-        /**
-        Set our FOTA manifest
-        @param manifest input the FOTA manifest
-        @param manifest_length input the length of the FOTA manifest
-        */
-        virtual void setFOTAManifest(char *manifest,uint32_t manifest_length);
-        
-        /**
-        Get our FOTA manifest
-        @return the FOTA manifest
-        */
-        virtual char *getFOTAManifest();
-        
-        /**
-        Get our FOTA manifest length
-        @return the FOTA manifest length
-        */
-        virtual uint32_t getFOTAManifestLength();
-        
-        /**
-        Set our FOTA image
-        @param fota_image input the FOTA image
-        @param fota_image_length input the length of the fota image
-        */
-        virtual void setFOTAImage(void *fota_image,uint32_t fota_image_length);
-        
-        /**
-        Get our FOTA image
-        @return the FOTA image
-        */
-        virtual void *getFOTAImage();
-        
-        /**
-        Get our FOTA image length
-        @return the FOTA image length
-        */
-        virtual uint32_t getFOTAImageLength();
-        
-        /**
-        ACTION: Invoke FOTA (default: empty action)
-        @param challenge input the input authentication challenge
-        */
-        virtual void invokeFOTA(const void *challenge);
-    
     private:
         Logger                      *m_logger;
         Authenticator               *m_authenticator;
         void                        *m_endpoint;
-        char                        *m_manifest;
-        int                          m_manifest_length;
-        void                        *m_fota_image;
-        uint32_t                     m_fota_image_length;
-        
-        initialize_fn                m_initialize_fn;
-        responder_fn                 m_reboot_responder_fn;
-        responder_fn                 m_reset_responder_fn;
-        manifest_fn                  m_fota_manifest_fn;
-        image_set_fn                 m_fota_image_set_fn;
-        responder_fn                 m_fota_invocation_fn;
         
         bool                         authenticate(const void *challenge);
 };

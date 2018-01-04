@@ -733,16 +733,6 @@ void Endpoint::value_updated(M2MBase *base, M2MBase::BaseType type) {
 		target_res->process(base->operation(), type);
 	}
 
-#ifndef ENABLE_MBED_CLOUD_SUPPORT
-	else {
-		// DEBUG
-		//this->logger()->log("Value Updated (Device Manager)");
-
-		// let DeviceManager handle it
-		((DeviceManager *) this->m_device_manager)->process(base, type);
-	}
-#endif
-
 	// CSI
 	if (this->m_csi != NULL) {
 		this->m_csi->value_updated((void *) this, (void *) base, (int) type);

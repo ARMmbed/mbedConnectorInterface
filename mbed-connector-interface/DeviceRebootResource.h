@@ -42,7 +42,7 @@ public:
      * @param observable input the resource is Observable (default: FALSE)
      */
     DeviceRebootResource(const Logger *logger,const char *obj_name,const char *res_name,void *dm_responder,const bool observable = false) :
-        DynamicResource(logger,obj_name,res_name,"reboot",M2MBase::POST_ALLOWED,observable) {
+        DynamicResource(logger,obj_name,res_name,"Reboot",M2MBase::POST_ALLOWED,observable) {
         this->m_dm_responder = (DeviceManagementResponder *)dm_responder;
         this->m_value = string("OK");
     }

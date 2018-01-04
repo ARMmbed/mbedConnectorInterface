@@ -92,10 +92,12 @@ void DeviceManagementResponder::rebootDevice(const void *challenge) {
     if (this->m_endpoint != NULL) {
         // authenticate
         if (this->authenticate(challenge)) {
-            // DEBUG
-            this->m_logger->log("DeviceManagementResponder(reboot): rebooting device...");
+	    // deregister first...
+            this->m_logger->log("DeviceManagementResponder(reboot): re-registering device...");
+            ((Connector::Endpoint *)this->m_endpoint)->de_register_endpoint();
 
-       	    // act
+	    // then reboot...
+            this->m_logger->log("DeviceManagementResponder(reboot): rebooting device...");
 	    NVIC_SystemReset();
         }
         else {

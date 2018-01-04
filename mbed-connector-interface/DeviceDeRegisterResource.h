@@ -42,7 +42,7 @@ public:
     @param dm_responder input the DM responder instance
     */
     DeviceDeRegisterResource(const Logger *logger,const char *obj_name,const char *res_name,const void *dm_responder,bool observable = false) : 
-        DynamicResource(logger,obj_name,res_name,"deregistration",M2MBase::POST_ALLOWED,observable)
+        DynamicResource(logger,obj_name,res_name,"Deregister",M2MBase::POST_ALLOWED,observable)
     {
         this->m_dm_responder = (DeviceManagementResponder *)dm_responder;
         this->m_value = string("OK");

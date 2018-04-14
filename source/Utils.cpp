@@ -45,29 +45,123 @@ Connector::Options *options = NULL;
     FileSystem* fs = filesystem_selector();
     BlockDevice* sd = NULL;
     BlockDevice* arm_uc_blockdevice = storage_selector();
+    #include "mbed-trace/mbed_trace.h"
+    #include "mbed-trace-helper.h"
+    #include "factory_configurator_client.h"
 #endif // ENABLE_MBED_CLOUD_SUPPORT
+
+// initialize mbed trace
+void utils_init_mbed_trace() {
+#ifdef ENABLE_MBED_CLOUD_SUPPORT
+    // Create mutex for tracing to avoid broken lines in logs
+    if(!mbed_trace_helper_create_mutex()) {
+        logger.log("utils_init_mbed_trace: ERROR - Mutex creation for mbed_trace failed!");
+    }
+    
+    // Initialize mbed trace
+    mbed_trace_init();
+    mbed_trace_mutex_wait_function_set(mbed_trace_helper_mutex_wait);
+    mbed_trace_mutex_release_function_set(mbed_trace_helper_mutex_release);
+#endif
+}
+
+// reformat storage
+bool utils_reformat_storage() {
+// only for mbed-cloud-client
+#ifdef ENABLE_MBED_CLOUD_SUPPORT
+    int reformat_result = -1;
+    logger.log("utils_reformat_storage: Autoformatting the storage...");
+    if (sd) {
+        reformat_result = fs->reformat(sd);
+        if (reformat_result != 0) {
+            logger.log("utils_reformat_storage: Autoformatting failed with error %d", reformat_result);
+        }
+    }
+    return reformat_result;
+#endif
+    return false;
+}
+
+// reset storage
+void utils_reset_storage()
+{
+// only for mbed-cloud-client
+#ifdef ENABLE_MBED_CLOUD_SUPPORT
+    logger.log("utils_reset_storage: resetting storage to an empty state...");
+    fcc_status_e delete_status = fcc_storage_delete();
+    if (delete_status != FCC_STATUS_SUCCESS) {
+        logger.log("Failed to delete storage - %d", delete_status);
+    }
+#endif
+}
 
 // initialize the underlying platform
 bool utils_init_platform() {
 // only for mbed-cloud-client
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
+    // initialize mbed-trace
+    utils_init_mbed_trace();
+
     // Mirror invocations from initPlatform() within setup.cpp
     sd = storage_selector();
     
     if (sd) {
         int sd_ret = sd->init();
-        
         if(sd_ret != BD_ERROR_OK) {
             logger.log("utils_init_platform() - sd->init() failed with %d", sd_ret);
             logger.log("SD card initialization failed. Verify that SD-card is attached.");
-            return -1;
+            return false;
         }
+    }
+    else {
+	logger.log("utils_init_platform() - SD storage selector initialized SUCCESS!");
+    }
+
+    // initialize FCC
+    logger.log("utils_init_platform: initializing FCC...");
+    fcc_status_e status = fcc_init();
+    if (status != FCC_STATUS_SUCCESS) {
+         logger.log("utils_init_platform: ERROR: mfcc_init failed with status=%d...", status);
+         return false;
+    }
+
+    // determine if we are already configured or not... if so, we are golden
+    int cf_status = fcc_verify_device_configured_4mbed_cloud();
+    if (cf_status != FCC_STATUS_SUCCESS) {
+       if (utils_reformat_storage() != 0) {
+           return false;
+        }
+        utils_reset_storage();
     }
 #endif // ENABLE_MBED_CLOUD_SUPPORT
 
-	// platform is initialized
-	logger.log("utils_init_platform(): platform initialized");
-	return true;
+    // platform is initialized
+    logger.log("utils_init_platform(): platform initialized");
+    return true;
+}
+
+// initialize the appropriate provisioning flow
+bool utils_init_provisioning_flow() {
+#ifdef MBED_CONF_APP_DEVELOPER_MODE
+   // Developer Mode
+   logger.log("utils_init_provisioning_flow: Start developer flow...");
+   fcc_status_e status = fcc_developer_flow();
+   if (status == FCC_STATUS_KCM_FILE_EXIST_ERROR) {
+          logger.log("utils_init_provisioning_flow: Developer credentials already exists (OK)...");
+   } else if (status != FCC_STATUS_SUCCESS) {
+          logger.log("utils_init_provisioning_flow: ERROR: Failed to load developer credentials");
+          return false;
+   }
+   int fc_status = fcc_verify_device_configured_4mbed_cloud();
+   if (fc_status != FCC_STATUS_SUCCESS) {
+           logger.log("utils_init_provisioning_flow: ERROR: Device not configured for mbed Cloud");
+           return false;
+    }
+#else
+    // Factory Mode
+    this->logger()->log("utils_init_provisioning_flow: non-developer factory flow chosen... continuing...");
+#endif
+     return true;
 }
 
 // initialize the Connector::Endpoint instance

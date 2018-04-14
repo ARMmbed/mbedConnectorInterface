@@ -234,8 +234,8 @@ private:
 	
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
 	// mbed-cloud methods (R1.2+)
-	bool			 initializeStorage();
-	bool			 initializeFactoryFlow();
+	bool			 initializePlatform();
+	bool			 initializeProvisioningFlow();
     void 			 createCloudEndpointInterface();
 #else
 	// mbed-client methods

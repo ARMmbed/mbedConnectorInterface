@@ -34,14 +34,14 @@
 
 // factory storage and configurator support (mbed Cloud R1.2+)
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
-	// trace configuration
-	#include "mbed-trace/mbed_trace.h"
+// trace configuration
+#include "mbed-trace/mbed_trace.h"
 
-	// updater support
-	#include "update_ui_example.h"
+// updater support
+#include "update_ui_example.h"
 
-	// factory flow support
-	#include "factory_configurator_client.h"
+// factory flow support
+#include "factory_configurator_client.h"
 #endif
 
 // our endpoint instance
@@ -91,22 +91,23 @@ void Endpoint::start() {
 		// make sure we have an endpoint interface before continuing...
 		if (__endpoint != NULL && __endpoint->getEndpointInterface() != NULL) {
 			// finalize the endpoint and start its main loop
-			printf("Endpoint::start: finalize and run the endpoint main loop..\r\n");
+			printf(
+					"Endpoint::start: finalize and run the endpoint main loop..\r\n");
 			net_finalize_and_run_endpoint_main_loop((void *) __endpoint);
-		}
-		else {
+		} else {
 			// not starting the endpoint due to errors
-			printf("Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint interface)... exiting...\r\n");
+			printf(
+					"Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint interface)... exiting...\r\n");
 
 			// end in error... 
 			while (true) {
 				Thread::wait(1000);
 			}
 		}
-	}
-	else {
+	} else {
 		// not starting the endpoint due to errors
-		printf("Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint)... exiting...\r\n");
+		printf(
+				"Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint)... exiting...\r\n");
 
 		// end in error... 
 		while (true) {
@@ -124,7 +125,8 @@ void Endpoint::setConnectionStatusInterface(ConnectionStatusInterface *csi) {
 
 // Constructor
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
-Endpoint::Endpoint(const Logger *logger, const Options *options) : MbedCloudClientCallback(), M2MInterfaceObserver()
+Endpoint::Endpoint(const Logger *logger, const Options *options) :
+		MbedCloudClientCallback(), M2MInterfaceObserver()
 #else
 Endpoint::Endpoint(const Logger *logger, const Options *options) : M2MInterfaceObserver()
 #endif
@@ -158,10 +160,10 @@ Endpoint::Endpoint(const Endpoint &ep) {
 Endpoint::~Endpoint() {
 #ifndef ENABLE_MBED_CLOUD_SUPPORT
 	if (this->m_endpoint_interface != NULL)
-		delete this->m_endpoint_interface;
+	delete this->m_endpoint_interface;
 
 	if (this->m_endpoint_security != NULL)
-		delete this->m_endpoint_security;
+	delete this->m_endpoint_security;
 #endif
 }
 
@@ -229,84 +231,46 @@ void Endpoint::createEndpointInterface() {
 }
 
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
-// mbedCloudClient: initialize Storage
-bool Endpoint::initializeStorage() {
-#ifdef MBED_CLOUD_STORAGE_INIT
-	// initialize mbed-trace
-	mbed_trace_init();
-
+// mbedCloudClient: initialize the platform
+bool Endpoint::initializePlatform() {
 	// initialize the underlying platform
-	this->logger()->log("initializeStorage: initializing underlying platform...");
+	this->logger()->log("initializePlatform: initializing underlying platform...");
 	if (utils_init_platform() != true) {
-	    this->logger()->log("initializeStorage: ERROR: initPlatform() failed!");
-	    return false;
-	}
-
-	// initialize FCC
-	fcc_status_e status = fcc_init();
-	if (status != FCC_STATUS_SUCCESS) {
-		this->logger()->log("initializeStorage: ERROR: mfcc_init failed with status=%d...", status);
+		this->logger()->log("initializePlatform: ERROR: utils_init_platform() failed!");
 		return false;
 	}
-	#ifdef MBED_RESET_STORAGE
-	// Resets storage to an empty state.
-	// Use this function when you want to clear SD card from all the factory-tool generated data and user data.
-	// After this operation device must be injected again by using factory tool or developer certificate.
-	this->logger()->log("initializeStorage: Resetting storage to an empty state...");
-	fcc_status_e delete_status = fcc_storage_delete();
-	if (delete_status != FCC_STATUS_SUCCESS) {
-		this->logger()->log("initializeStorage: Failed to reset storage to an empty state. status=%d (OK)...", delete_status);
-	}
-	#endif
-#else
-	// not enabled
-	this->logger()->log("initializeStorage: storage initialize disabled (OK)...");
-#endif
+
+	// DEBUG
+	this->logger()->log("initializePlatform: platform initialized SUCCESS!");
 	return true;
 }
 
-// mbedCloudClient:: initialize factory flow
-bool Endpoint::initializeFactoryFlow() {
-#ifdef MBED_CLOUD_DEV_FLOW_INIT
-#ifdef MBED_CONF_APP_DEVELOPER_MODE
-	this->logger()->log("initializeFactoryFlow: Start developer flow...");
-	fcc_status_e status = fcc_developer_flow();
-	if (status == FCC_STATUS_KCM_FILE_EXIST_ERROR) {
-		this->logger()->log("initializeFactoryFlow: Developer credentials already exists (OK)...");
-	} else if (status != FCC_STATUS_SUCCESS) {
-		this->logger()->log("initializeFactoryFlow: ERROR: Failed to load developer credentials");
-		return false;
-	}
-	status = fcc_verify_device_configured_4mbed_cloud();
-	if (status != FCC_STATUS_SUCCESS) {
-		this->logger()->log("initializeFactoryFlow: ERROR: Device not configured for mbed Cloud");
-		return false;
-	}
-	return true;
-#else
-	this->logger()->log("initializeFactoryFlow: non-developer factory flow chosen... continuing...");
-	return true;
-#endif
-#else
-	this->logger()->log("initializeFactoryFlow: developer flow init disabled (OK)...");
-	return true;
-#endif
+// mbedCloudClient: initialize provisioning flow
+bool Endpoint::initializeProvisioningFlow() {
+     this->logger()->log("iinitializeProvisioningFlow: initializing provisioning flow...");
+     if (utils_init_provisioning_flow() != true) {
+          this->logger()->log("initializeProvisioningFlow: ERROR utils_init_provisioning_flow() failed");
+          return false;
+     }
+
+     // DEBUG
+     this->logger()->log("initializeProvisioningFlow: provisioning flow initialized SUCCESS!");
+     return true;
 }
 
 // mbedCloudClient: create our interface
 void Endpoint::createCloudEndpointInterface() {
 	if (this->m_endpoint_interface == NULL) {
-		bool storage_init = this->initializeStorage();
-		bool factory_flow_init = this->initializeFactoryFlow();
-		if (storage_init && factory_flow_init) {
+		bool platform_init = this->initializePlatform();
+		bool provisioning_flow_init = this->initializeProvisioningFlow();
+		if (platform_init && provisioning_flow_init) {
 			// create a new instance of mbedCloudClient
 			this->logger()->log("createCloudEndpointInterface: creating mbed cloud client instance...");
 			this->m_endpoint_interface = new MbedCloudClient();
 			if (this->m_endpoint_interface == NULL) {
 				// unable to allocate the MbedCloudClient instance
 				this->logger()->log("createCloudEndpointInterface: ERROR: unable to allocate MbedCloudClient instance...");
-			}
-			else {
+			} else {
 				// enable hooks for Updater support (R1.2+) (if enabled)
 #ifdef MBED_CLOUD_CLIENT_SUPPORT_UPDATE		
 				// Establish the updater hook	
@@ -324,15 +288,13 @@ void Endpoint::createCloudEndpointInterface() {
 
 #endif
 			}
-		}
-		else {
-			if (storage_init) {
-				// unable to create mbed cloud client instance... (FAILED factory flow init)
-				this->logger()->log("createCloudEndpointInterface: ERROR: unable to initialize factory flow...");
-			}
-			else {
-				// unable to create mbed cloud client instance... (FAILED storage init)
-				this->logger()->log("createCloudEndpointInterface: ERROR: unable to initialize storage...");
+		} else {
+			if (platform_init) {
+				// unable to create mbed cloud client instance... (FAILED provisioning flow init)
+				this->logger()->log("createCloudEndpointInterface: ERROR: unable to initialize provisioning flow...");
+			} else {
+				// unable to create mbed cloud client instance... (FAILED platform init)
+				this->logger()->log("createCloudEndpointInterface: ERROR: unable to initialize platform...");
 			}
 			this->m_endpoint_interface = NULL;
 		}
@@ -341,12 +303,13 @@ void Endpoint::createCloudEndpointInterface() {
 	// bind LWIP network interface pointer...                                          
 	if (__network_interface != NULL && this->m_endpoint_interface != NULL) {
 		this->logger()->log("Connector::Endpoint: binding LWIP network instance (Cloud)...");
-		this->m_endpoint_interface->on_registered(&Connector::Endpoint::on_registered);
-		this->m_endpoint_interface->on_unregistered(&Connector::Endpoint::on_unregistered);
+		this->m_endpoint_interface->on_registered(
+				&Connector::Endpoint::on_registered);
+		this->m_endpoint_interface->on_unregistered(
+				&Connector::Endpoint::on_unregistered);
 		this->m_endpoint_interface->on_error(&Connector::Endpoint::on_error);
 		this->m_endpoint_interface->set_update_callback(this);
-	}
-	else {
+	} else {
 		// skipping LWIP bind...
 		this->logger()->log("Connector::Endpoint: ERROR (Cloud) skipping LWIP network instance bind due to previous error...");
 	}
@@ -369,7 +332,7 @@ void Endpoint::createConnectorEndpointInterface() {
 	// Socket protocol type: TCP or UDP
 	M2MInterface::BindingMode socket_protocol_type = M2MInterface::UDP;
 	if (this->m_options->getCoAPConnectionType() == COAP_TCP)
-		socket_protocol_type = M2MInterface::TCP;
+	socket_protocol_type = M2MInterface::TCP;
 
 	// Socket address type: IPv4 or IPv6
 	M2MInterface::NetworkStack socket_address_type = M2MInterface::LwIP_IPv4;
@@ -386,25 +349,25 @@ void Endpoint::createConnectorEndpointInterface() {
 
 	// DEBUG
 	if (socket_protocol_type == M2MInterface::TCP)
-		this->logger()->log("Connector::Endpoint: Socket Protocol: TCP");
+	this->logger()->log("Connector::Endpoint: Socket Protocol: TCP");
 	if (socket_protocol_type == M2MInterface::UDP)
-		this->logger()->log("Connector::Endpoint: Socket Protocol: UDP");
+	this->logger()->log("Connector::Endpoint: Socket Protocol: UDP");
 	if (socket_address_type == M2MInterface::LwIP_IPv4)
-		this->logger()->log("Connector::Endpoint: Socket Address Type: IPv4");
+	this->logger()->log("Connector::Endpoint: Socket Address Type: IPv4");
 	if (socket_address_type == M2MInterface::LwIP_IPv6)
-		this->logger()->log("Connector::Endpoint: Socket Address Type: IPv6");
+	this->logger()->log("Connector::Endpoint: Socket Address Type: IPv6");
 
 	// Create the endpoint M2MInterface instance
 	this->m_endpoint_interface = M2MInterfaceFactory::create_interface(*this,
 			(char *) this->m_options->getEndpointNodename().c_str(),// endpoint name
 			(char *) this->m_options->getEndpointType().c_str(),// endpoint type
 			(int32_t) this->m_options->getLifetime(),// registration lifetime (in seconds)
-			listening_port,						// listening port (ephemeral...)
-			(char *) this->m_options->getDomain().c_str(),	// endpoint domain
-			socket_protocol_type,		// Socket protocol type: UDP or TCP...
-			socket_address_type,		// Socket addressing type: IPv4 or IPv6
+			listening_port,// listening port (ephemeral...)
+			(char *) this->m_options->getDomain().c_str(),// endpoint domain
+			socket_protocol_type,// Socket protocol type: UDP or TCP...
+			socket_address_type,// Socket addressing type: IPv4 or IPv6
 			CONTEXT_ADDRESS_STRING// context address string (mbedConnectorInterface.h)
-			);
+	);
 
 	// bind LWIP network interface pointer...
 	if (__network_interface != NULL && this->m_endpoint_interface != NULL) {
@@ -447,98 +410,101 @@ M2MSecurity *Endpoint::createEndpointSecurityInstance() {
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
 // mbed-cloud-client: Callback from mbed client stack if any error is encountered
 void Endpoint::on_error(int error_code) {
-	char *error = (char *)"No Error";
-	switch(error_code) {
-		case MbedCloudClient::ConnectErrorNone:
-		error = (char *)"MbedCloudClient::ConnectErrorNone";
+	char *error = (char *) "No Error";
+	switch (error_code) {
+	case MbedCloudClient::ConnectErrorNone:
+		error = (char *) "MbedCloudClient::ConnectErrorNone";
 		break;
-		case MbedCloudClient::ConnectAlreadyExists:
-		error = (char *)"MbedCloudClient::ConnectAlreadyExists";
+	case MbedCloudClient::ConnectAlreadyExists:
+		error = (char *) "MbedCloudClient::ConnectAlreadyExists";
 		break;
-		case MbedCloudClient::ConnectBootstrapFailed:
-		error = (char *)"MbedCloudClient::ConnectBootstrapFailed";
+	case MbedCloudClient::ConnectBootstrapFailed:
+		error = (char *) "MbedCloudClient::ConnectBootstrapFailed";
 		break;
-		case MbedCloudClient::ConnectInvalidParameters:
-		error = (char *)"MbedCloudClient::ConnectInvalidParameters";
+	case MbedCloudClient::ConnectInvalidParameters:
+		error = (char *) "MbedCloudClient::ConnectInvalidParameters";
 		break;
-		case MbedCloudClient::ConnectNotRegistered:
-		error = (char *)"MbedCloudClient::ConnectNotRegistered";
+	case MbedCloudClient::ConnectNotRegistered:
+		error = (char *) "MbedCloudClient::ConnectNotRegistered";
 		break;
-		case MbedCloudClient::ConnectTimeout:
-		error = (char *)"MbedCloudClient::ConnectTimeout";
+	case MbedCloudClient::ConnectTimeout:
+		error = (char *) "MbedCloudClient::ConnectTimeout";
 		break;
-		case MbedCloudClient::ConnectNetworkError:
-		error = (char *)"MbedCloudClient::ConnectNetworkError";
+	case MbedCloudClient::ConnectNetworkError:
+		error = (char *) "MbedCloudClient::ConnectNetworkError";
 		break;
-		case MbedCloudClient::ConnectResponseParseFailed:
-		error = (char *)"MbedCloudClient::ConnectResponseParseFailed";
+	case MbedCloudClient::ConnectResponseParseFailed:
+		error = (char *) "MbedCloudClient::ConnectResponseParseFailed";
 		break;
-		case MbedCloudClient::ConnectUnknownError:
-		error = (char *)"MbedCloudClient::ConnectUnknownError";
+	case MbedCloudClient::ConnectUnknownError:
+		error = (char *) "MbedCloudClient::ConnectUnknownError";
 		break;
-		case MbedCloudClient::ConnectMemoryConnectFail:
-		error = (char *)"MbedCloudClient::ConnectMemoryConnectFail";
+	case MbedCloudClient::ConnectMemoryConnectFail:
+		error = (char *) "MbedCloudClient::ConnectMemoryConnectFail";
 		break;
-		case MbedCloudClient::ConnectNotAllowed:
-		error = (char *)"MbedCloudClient::ConnectNotAllowed";
+	case MbedCloudClient::ConnectNotAllowed:
+		error = (char *) "MbedCloudClient::ConnectNotAllowed";
 		break;
-		case MbedCloudClient::ConnectSecureConnectionFailed:
-		error = (char *)"MbedCloudClient::ConnectSecureConnectionFailed";
+	case MbedCloudClient::ConnectSecureConnectionFailed:
+		error = (char *) "MbedCloudClient::ConnectSecureConnectionFailed";
 		break;
-		case MbedCloudClient::ConnectDnsResolvingFailed:
-		error = (char *)"MbedCloudClient::ConnectDnsResolvingFailed";
+	case MbedCloudClient::ConnectDnsResolvingFailed:
+		error = (char *) "MbedCloudClient::ConnectDnsResolvingFailed";
 		break;
 #ifdef MBED_CLOUD_CLIENT_SUPPORT_UPDATE
-		case UpdateClient::WarningCertificateNotFound:
-		error = (char *)"MbedCloudClient(Update): WarningCertificateNotFound";
+	case UpdateClient::WarningCertificateNotFound:
+		error = (char *) "MbedCloudClient(Update): WarningCertificateNotFound";
 		break;
-		case UpdateClient::WarningIdentityNotFound:
-		error = (char *)"MbedCloudClient(Update): WarningIdentityNotFound";
+	case UpdateClient::WarningIdentityNotFound:
+		error = (char *) "MbedCloudClient(Update): WarningIdentityNotFound";
 		break;
-		case UpdateClient::WarningCertificateInvalid:
-		error = (char *)"MbedCloudClient(Update): WarningCertificateInvalid";
+	case UpdateClient::WarningCertificateInvalid:
+		error = (char *) "MbedCloudClient(Update): WarningCertificateInvalid";
 		break;
-		case UpdateClient::WarningSignatureInvalid:
-		error = (char *)"MbedCloudClient(Update): WarningSignatureInvalid";
+	case UpdateClient::WarningSignatureInvalid:
+		error = (char *) "MbedCloudClient(Update): WarningSignatureInvalid";
 		break;
-		case UpdateClient::WarningVendorMismatch:
-		error = (char *)"MbedCloudClient(Update): WarningVendorMismatch";
+	case UpdateClient::WarningVendorMismatch:
+		error = (char *) "MbedCloudClient(Update): WarningVendorMismatch";
 		break;
-		case UpdateClient::WarningClassMismatch:
-		error = (char *)"MbedCloudClient(Update): WarningClassMismatch";
+	case UpdateClient::WarningClassMismatch:
+		error = (char *) "MbedCloudClient(Update): WarningClassMismatch";
 		break;
-		case UpdateClient::WarningDeviceMismatch:
-		error = (char *)"MbedCloudClient(Update): WarningDeviceMismatch";
+	case UpdateClient::WarningDeviceMismatch:
+		error = (char *) "MbedCloudClient(Update): WarningDeviceMismatch";
 		break;
-		case UpdateClient::WarningURINotFound:
-		error = (char *)"MbedCloudClient(Update): WarningURINotFound";
+	case UpdateClient::WarningURINotFound:
+		error = (char *) "MbedCloudClient(Update): WarningURINotFound";
 		break;
-		case UpdateClient::WarningRollbackProtection:
-		error = (char *)"MbedCloudClient(Update): WarningRollbackProtection. Manifest is older than currently running image.";
+	case UpdateClient::WarningRollbackProtection:
+		error =
+				(char *) "MbedCloudClient(Update): WarningRollbackProtection. Manifest is older than currently running image.";
 		break;
-		case UpdateClient::WarningUnknown:
-		error = (char *)"MbedCloudClient(Update): WarningUnknown";
+	case UpdateClient::WarningUnknown:
+		error = (char *) "MbedCloudClient(Update): WarningUnknown";
 		break;
-		case UpdateClient::ErrorWriteToStorage:
-		error = (char *)"MbedCloudClient(Update): ErrorWriteToStorage";
+	case UpdateClient::ErrorWriteToStorage:
+		error = (char *) "MbedCloudClient(Update): ErrorWriteToStorage";
 		break;
 #endif		
-		default:
-		error = (char *)"UNKNOWN";
+	default:
+		error = (char *) "UNKNOWN";
 	}
-	printf("Connector::Endpoint(Cloud) Error(%x): %s\r\n",error_code,error);
+	printf("Connector::Endpoint(Cloud) Error(%x): %s\r\n", error_code, error);
 }
 
 // mbed-cloud-client: update_authorized
 void Endpoint::update_authorize(int32_t request) {
 	// simple debug for now... this will NOT authorize the update request... 
-	printf("Connector::Endpoint(Cloud) Update Authorize: request: %d\n",(int)request);
+	printf("Connector::Endpoint(Cloud) Update Authorize: request: %d\n",
+			(int) request);
 }
 
 // mbed-cloud-client: update_progress
 void Endpoint::update_progress(uint32_t progress, uint32_t total) {
 	// simple debug for now...
-	printf("Connector::Endpoint(Cloud) Update Progress: (%d/%d)\n",(int)progress,(int)total);
+	printf("Connector::Endpoint(Cloud) Update Progress: (%d/%d)\n",
+			(int) progress, (int) total);
 }
 #endif
 

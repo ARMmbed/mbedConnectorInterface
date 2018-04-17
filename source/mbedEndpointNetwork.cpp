@@ -168,7 +168,9 @@ void net_plumb_network(void *p)
 	}
 
     // connect (use easy-connect now...)
-    __network_interface = easy_connect(EASY_CONNECT_DEBUG);
+    if (__network_interface == NULL) {
+        __network_interface = easy_connect(EASY_CONNECT_DEBUG);
+    }
 
 	// check the connection status..
 	if (__network_interface != NULL) {

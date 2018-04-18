@@ -32,13 +32,6 @@
 
 /************** DEFAULT CONFIGURATION PARAMETERS  ************************/
 
-// Network Selection Definitions (must match easy-connect.h)
-#define ETHERNET        					1
-#define WIFI_ESP8266    					2
-#define MESH_LOWPAN_ND  					3
-#define MESH_THREAD     					4
-#define WIFI_ODIN       					5
-
 //
 // ResourceObserver type: EventQueue, Threading, or Ticker (only ONE may be uncommented)
 //

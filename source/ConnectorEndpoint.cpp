@@ -99,7 +99,7 @@ void Endpoint::start() {
 			printf(
 					"Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint interface)... exiting...\r\n");
 
-			// end in error... 
+			// end in error...
 			while (true) {
 				Thread::wait(1000);
 			}
@@ -109,7 +109,7 @@ void Endpoint::start() {
 		printf(
 				"Connector::Endpoint::start: Not starting endpoint due to errors (no endpoint)... exiting...\r\n");
 
-		// end in error... 
+		// end in error...
 		while (true) {
 			Thread::wait(1000);
 		}
@@ -272,8 +272,8 @@ void Endpoint::createCloudEndpointInterface() {
 				this->logger()->log("createCloudEndpointInterface: ERROR: unable to allocate MbedCloudClient instance...");
 			} else {
 				// enable hooks for Updater support (R1.2+) (if enabled)
-#ifdef MBED_CLOUD_CLIENT_SUPPORT_UPDATE		
-				// Establish the updater hook	
+#ifdef MBED_CLOUD_CLIENT_SUPPORT_UPDATE
+				// Establish the updater hook
 				update_ui_set_cloud_client(this->m_endpoint_interface);
 
 				// Update Authorize Handler (optional, disabled by default)
@@ -300,7 +300,7 @@ void Endpoint::createCloudEndpointInterface() {
 		}
 	}
 
-	// bind LWIP network interface pointer...                                          
+	// bind LWIP network interface pointer...
 	if (__network_interface != NULL && this->m_endpoint_interface != NULL) {
 		this->logger()->log("Connector::Endpoint: binding LWIP network instance (Cloud)...");
 		this->m_endpoint_interface->on_registered(
@@ -337,7 +337,7 @@ void Endpoint::createConnectorEndpointInterface() {
 	// Socket address type: IPv4 or IPv6
 	M2MInterface::NetworkStack socket_address_type = M2MInterface::LwIP_IPv4;
 	if (this->m_options->getIPAddressType() == IP_ADDRESS_TYPE_IPV6) {
-		// IPv6 mode for the socket addressing type... 
+		// IPv6 mode for the socket addressing type...
 		socket_address_type = M2MInterface::LwIP_IPv6;
 
 #if defined (IPV4_OVERRIDE)
@@ -486,7 +486,7 @@ void Endpoint::on_error(int error_code) {
 	case UpdateClient::ErrorWriteToStorage:
 		error = (char *) "MbedCloudClient(Update): ErrorWriteToStorage";
 		break;
-#endif		
+#endif
 	default:
 		error = (char *) "UNKNOWN";
 	}
@@ -495,7 +495,7 @@ void Endpoint::on_error(int error_code) {
 
 // mbed-cloud-client: update_authorized
 void Endpoint::update_authorize(int32_t request) {
-	// simple debug for now... this will NOT authorize the update request... 
+	// simple debug for now... this will NOT authorize the update request...
 	printf("Connector::Endpoint(Cloud) Update Authorize: request: %d\n",
 			(int) request);
 }
@@ -559,7 +559,7 @@ void Endpoint::re_register_endpoint() {
 	}
 }
 
-// de-register endpoint 
+// de-register endpoint
 void Endpoint::de_register_endpoint(void) {
 	if (this->m_endpoint_interface != NULL) {
 #ifdef ENABLE_MBED_CLOUD_SUPPORT
@@ -574,7 +574,7 @@ void Endpoint::de_register_endpoint(void) {
 		} else {
 			this->m_endpoint_interface->unregister_object(NULL);
 		}
-#endif		
+#endif
 	}
 }
 
@@ -655,7 +655,7 @@ void Endpoint::object_unregistered(M2MSecurity *security) {
 		this->m_csi->object_unregistered((void *) this, (void *) security);
 	}
 
-	// halt the main event loop... we are done. 
+	// halt the main event loop... we are done.
 	net_shutdown_endpoint();
 }
 
@@ -735,19 +735,6 @@ void Endpoint::buildEndpoint() {
 
 			// bind the device manager
 			((DeviceManager *) this->m_device_manager)->bind();
-
-			// push back the Device Resources Object
-			if (this->m_options->getDeviceResourcesObject() != NULL) {
-				// DEBUG
-				this->logger()->log("Connector::Endpoint::build(): plumbing device resources object...");
-
-				// push back the device resources object
-				this->m_endpoint_object_list.push_back(
-						(M2MObject *) this->m_options->getDeviceResourcesObject());
-			} else {
-				// unable to plumb device manager
-				this->logger()->log("Connector::Endpoint::build(): Unable to plumb device resources. Not installing device resource object...");
-			}
 
 			// push back the Firmware Resources Object
 			if (this->m_options->getFirmwareResourcesObject() != NULL) {

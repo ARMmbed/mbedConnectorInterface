@@ -735,24 +735,12 @@ void Endpoint::buildEndpoint() {
 
 			// bind the device manager
 			((DeviceManager *) this->m_device_manager)->bind();
-
-			// push back the Firmware Resources Object
-			if (this->m_options->getFirmwareResourcesObject() != NULL) {
-				// DEBUG
-				this->logger()->log("Connector::Endpoint::build(): plumbing firmware resources object...");
-
-				// push back the firmware resources object
-				this->m_endpoint_object_list.push_back(
-						(M2MObject *) this->m_options->getFirmwareResourcesObject());
-			} else {
-				// unable to plumb firmware manager
-				this->logger()->log("Connector::Endpoint::build(): Unable to plumb firmware resources. Not installing firmware resource object...");
-			}
-		} else {
+		}
+		else {
 			// no device manager installed
 			this->logger()->log("Connector::Endpoint::build(): No device manager installed.");
 		}
-
+		
 		// Loop through Static Resources and bind each of them...
 		this->logger()->log("Connector::Endpoint::build(): adding static resources...");
 		const StaticResourcesList *static_resources =

@@ -26,7 +26,7 @@
 // Support for Logging/Debug output
 #include "mbed-connector-interface/Logger.h"
 
-// mbed-client support
+// mbed-cloud-client support
 #include "mbed-client/m2minterfacefactory.h"
 #include "mbed-client/m2minterfaceobserver.h"
 #include "mbed-client/m2minterface.h"
@@ -49,11 +49,7 @@ namespace Connector  {
 
 /** Endpoint class
  */
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 class Endpoint : public MbedCloudClientCallback, public M2MInterfaceObserver  {
-#else
-class Endpoint : public M2MInterfaceObserver  {
-#endif
 
 public:
     /**
@@ -78,7 +74,7 @@ public:
     void buildEndpoint();
 
     /**
-    Plumb the lower RF network stack
+    Plumb the lower network stack
     @param device_manager input optional device manager (DeviceManager type)
     @param canActAsRouterNode input boolean indicating whether this node can act as a router node or not.
     */
@@ -101,52 +97,37 @@ public:
 	// de-register endpoint and stop scheduling
 	void de_register_endpoint(void);
 	
-	// mbed-client : register the endpoint
+	// register the endpoint
 	void register_endpoint(M2MSecurity *server_instance, M2MObjectList resources);
 	
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-	//  mbed-cloud-client : object registered
+	// object registered
     static void on_registered();
 
-	//  mbed-cloud-client : registration updated
+	// registration updated
 	static void on_registration_updated();
 
-	//  mbed-cloud-client : object unregistered
+	// object unregistered
 	static void on_unregistered();
 	
-	// mbed-cloud-client: error
+	// error
 	static void on_error(int error_code);
 	
-	/**
-	 * @brief Function for authorizing firmware downloads and reboots.
- 	 * @param request The request under consideration.
- 	 */
-	static void update_authorize(int32_t request);
-	
-	/**
- 	 * @brief Callback function for reporting the firmware download progress.
- 	 * @param progress Received bytes.
- 	 * @param total Total amount of bytes to be received.
- 	 */
-	static void update_progress(uint32_t progress, uint32_t total);
-#endif
-
 	//  mbed-client : object registered
     virtual void object_registered(M2MSecurity *security, const M2MServer &server);
     void object_registered(void *security = NULL,void *server = NULL);
 
-	//  mbed-client : registration updated
-	virtual void registration_updated(M2MSecurity *security, const M2MServer &server);
-	void registration_updated(void *security = NULL,void *server = NULL);
+    //  mbed-client : registration updated
+    virtual void registration_updated(M2MSecurity *security, const M2MServer &server);
+    void registration_updated(void *security = NULL,void *server = NULL);
 
-	//  mbed-client : object unregistered
-	virtual void object_unregistered(M2MSecurity *security = NULL);
+    //  mbed-client : object unregistered
+    virtual void object_unregistered(M2MSecurity *security = NULL);
 
     //  mbed-client : bootstrap done
 	virtual void bootstrap_done(M2MSecurity *security = NULL);
 
-	//  mbed-client : resource value updated
-	virtual void value_updated(M2MBase *resource, M2MBase::BaseType type) ;
+	// resource value updated
+	virtual void value_updated(M2MBase *resource, M2MBase::BaseType type);
 	
 	//  mbed-client : error handler
 	virtual void error(M2MInterface::Error error);
@@ -157,16 +138,8 @@ public:
 	// get our Options
 	Options *getOptions();
 	
-#ifdef ENABLE_MBED_CLOUD_SUPPORT 
 	// get our Endpoint Interface
 	MbedCloudClient *getEndpointInterface();
-#else	
-	// get our Endpoint Interface
-	M2MInterface *getEndpointInterface();
-#endif
-
-	// get our Endpoint Security
-	M2MSecurity *getSecurityInstance();
 	
 	// get our Endpoint Object List
 	M2MObjectList  getEndpointObjectList();
@@ -211,13 +184,7 @@ private:
     bool               			 m_connected;
     bool			   			 m_registered;
     
-    // mbed-client support
-#ifdef ENABLE_MBED_CLOUD_SUPPORT 
 	MbedCloudClient				*m_endpoint_interface;
-#else
-    M2MInterface				*m_endpoint_interface;
-#endif
-	M2MSecurity       			*m_endpoint_security;
     M2MObjectList      			 m_endpoint_object_list;
     
     // Device Manager
@@ -232,15 +199,10 @@ private:
 	// create our endpoint interface
 	void 			 createEndpointInterface();
 	
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-	// mbed-cloud methods (R1.2+)
+	// mbed-cloud-client methods
 	bool			 initializePlatform();
 	bool			 initializeProvisioningFlow();
     void 			 createCloudEndpointInterface();
-#else
-	// mbed-client methods
-    void 			 createConnectorEndpointInterface();
-#endif
 	
 	// create our endpoint security instance
     M2MSecurity 	*createEndpointSecurityInstance();
@@ -250,9 +212,6 @@ private:
 	
 	// stop underlying observers
     void stopObservations();
-    
-    // set our endpoint security instance
-    void setSecurityInstance(M2MSecurity *security);
 };
 
 } // namespace Connector

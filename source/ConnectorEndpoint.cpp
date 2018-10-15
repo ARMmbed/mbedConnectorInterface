@@ -5,7 +5,7 @@
  * @version 1.0
  * @see
  *
- * Copyright (c) 2014
+ * Copyright (c) 2018
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,6 @@
 // Device Manager support
 #include "mbed-connector-interface/DeviceManager.h"
 
-// factory storage and configurator support (mbed Cloud R1.2+)
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 // trace configuration
 #include "mbed-trace/mbed_trace.h"
 
@@ -42,7 +40,6 @@
 
 // factory flow support
 #include "factory_configurator_client.h"
-#endif
 
 // our endpoint instance
 static Connector::Endpoint *__endpoint = NULL;
@@ -101,7 +98,7 @@ void Endpoint::start() {
 
 			// end in error...
 			while (true) {
-				Thread::wait(1000);
+				ThisThread::sleep_for(1000);
 			}
 		}
 	} else {
@@ -111,7 +108,7 @@ void Endpoint::start() {
 
 		// end in error...
 		while (true) {
-			Thread::wait(1000);
+			ThisThread::sleep_for(1000);
 		}
 	}
 }
@@ -124,12 +121,8 @@ void Endpoint::setConnectionStatusInterface(ConnectionStatusInterface *csi) {
 }
 
 // Constructor
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 Endpoint::Endpoint(const Logger *logger, const Options *options) :
 		MbedCloudClientCallback(), M2MInterfaceObserver()
-#else
-Endpoint::Endpoint(const Logger *logger, const Options *options) : M2MInterfaceObserver()
-#endif
 {
 	this->m_logger = (Logger *) logger;
 	this->m_options = (Options *) options;
@@ -138,7 +131,6 @@ Endpoint::Endpoint(const Logger *logger, const Options *options) : M2MInterfaceO
 	this->m_registered = false;
 	this->m_csi = NULL;
 	this->m_oim = NULL;
-	this->m_endpoint_security = NULL;
 	this->m_endpoint_interface = NULL;
 }
 
@@ -147,7 +139,6 @@ Endpoint::Endpoint(const Endpoint &ep) {
 	this->m_logger = ep.m_logger;
 	this->m_options = ep.m_options;
 	this->m_endpoint_interface = ep.m_endpoint_interface;
-	this->m_endpoint_security = ep.m_endpoint_security;
 	this->m_endpoint_object_list = ep.m_endpoint_object_list;
 	this->m_device_manager = ep.m_device_manager;
 	this->m_connected = ep.m_connected;
@@ -158,13 +149,6 @@ Endpoint::Endpoint(const Endpoint &ep) {
 
 // Destructor
 Endpoint::~Endpoint() {
-#ifndef ENABLE_MBED_CLOUD_SUPPORT
-	if (this->m_endpoint_interface != NULL)
-	delete this->m_endpoint_interface;
-
-	if (this->m_endpoint_security != NULL)
-	delete this->m_endpoint_security;
-#endif
 }
 
 // set the device manager
@@ -192,45 +176,21 @@ Options *Endpoint::getOptions() {
 	return this->m_options;
 }
 
-// get our endpoint security instance
-M2MSecurity *Endpoint::getSecurityInstance() {
-	return this->m_endpoint_security;
-}
-
-// set our endpoint security instance
-void Endpoint::setSecurityInstance(M2MSecurity *security) {
-	if (security != NULL) {
-		this->m_endpoint_security = security;
-	}
-}
-
 // get our ObjectList
 M2MObjectList Endpoint::getEndpointObjectList() {
 	return this->m_endpoint_object_list;
 }
 
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 // get our endpoint interface
 MbedCloudClient *Endpoint::getEndpointInterface() {
 	return this->m_endpoint_interface;
 }
-#else
-// get our endpoint interface
-M2MInterface *Endpoint::getEndpointInterface() {
-	return this->m_endpoint_interface;
-}
-#endif
 
 // Connector::Endpoint: create our interface
 void Endpoint::createEndpointInterface() {
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 	this->createCloudEndpointInterface();
-#else
-	this->createConnectorEndpointInterface();
-#endif
 }
 
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 // mbedCloudClient: initialize the platform
 bool Endpoint::initializePlatform() {
 	// initialize the underlying platform
@@ -271,21 +231,15 @@ void Endpoint::createCloudEndpointInterface() {
 				// unable to allocate the MbedCloudClient instance
 				this->logger()->log("createCloudEndpointInterface: ERROR: unable to allocate MbedCloudClient instance...");
 			} else {
-				// enable hooks for Updater support (R1.2+) (if enabled)
-#ifdef MBED_CLOUD_CLIENT_SUPPORT_UPDATE
-				// Establish the updater hook
+#ifdef MBED_CLOUD_CLIENT_SUPPORT_UPDATE		
+				// Establish the updater hook in MbedCloudClient
 				update_ui_set_cloud_client(this->m_endpoint_interface);
 
-				// Update Authorize Handler (optional, disabled by default)
-#ifdef ENABLE_UPDATE_AUTHORIZE_HANDLER
-				this->m_endpoint_interface->set_update_authorize_handler(&Connector::Endpoint::update_authorize);
-#endif
+				// Update Authorize Handler
+				this->m_endpoint_interface->set_update_authorize_handler(&update_authorize);
 
 				// Update Progress Handler (optional, disabled by default)
-#ifdef ENABLE_UPDATE_PROGRESS_HANDLER
-				this->m_endpoint_interface->set_update_progress_handler(&Connector::Endpoint::update_progress);
-#endif
-
+				this->m_endpoint_interface->set_update_progress_handler(&update_progress);
 #endif
 			}
 		} else {
@@ -314,101 +268,8 @@ void Endpoint::createCloudEndpointInterface() {
 		this->logger()->log("Connector::Endpoint: ERROR (Cloud) skipping LWIP network instance bind due to previous error...");
 	}
 }
-#else
-// mbed-client: create our interface
-void Endpoint::createConnectorEndpointInterface() {
-	// get the CoAP listening port
-	uint16_t listening_port = (uint16_t) this->m_options->getConnectorPort();
 
-	// randomize the port if we are using certificates...
-	if (this->m_options->getServerCertificateSize() > 0) {
-		// Randomizing listening port for Certificate mode connectivity
-		srand (time(NULL));listening_port = rand() % 65535 + 12345;
-	}
-
-	// DEBUG
-	//this->logger()->log("Connector::Endpoint: listening port: %d",listening_port);
-
-	// Socket protocol type: TCP or UDP
-	M2MInterface::BindingMode socket_protocol_type = M2MInterface::UDP;
-	if (this->m_options->getCoAPConnectionType() == COAP_TCP)
-	socket_protocol_type = M2MInterface::TCP;
-
-	// Socket address type: IPv4 or IPv6
-	M2MInterface::NetworkStack socket_address_type = M2MInterface::LwIP_IPv4;
-	if (this->m_options->getIPAddressType() == IP_ADDRESS_TYPE_IPV6) {
-		// IPv6 mode for the socket addressing type...
-		socket_address_type = M2MInterface::LwIP_IPv6;
-
-#if defined (IPV4_OVERRIDE)
-		// OVERRIDE (until patched...)
-		this->logger()->log("Connector::Endpoint: Socket Address Type: IPv4 (IPv6 OVERRIDE)");
-		socket_address_type = M2MInterface::LwIP_IPv4;
-#endif
-	}
-
-	// DEBUG
-	if (socket_protocol_type == M2MInterface::TCP)
-	this->logger()->log("Connector::Endpoint: Socket Protocol: TCP");
-	if (socket_protocol_type == M2MInterface::UDP)
-	this->logger()->log("Connector::Endpoint: Socket Protocol: UDP");
-	if (socket_address_type == M2MInterface::LwIP_IPv4)
-	this->logger()->log("Connector::Endpoint: Socket Address Type: IPv4");
-	if (socket_address_type == M2MInterface::LwIP_IPv6)
-	this->logger()->log("Connector::Endpoint: Socket Address Type: IPv6");
-
-	// Create the endpoint M2MInterface instance
-	this->m_endpoint_interface = M2MInterfaceFactory::create_interface(*this,
-			(char *) this->m_options->getEndpointNodename().c_str(),// endpoint name
-			(char *) this->m_options->getEndpointType().c_str(),// endpoint type
-			(int32_t) this->m_options->getLifetime(),// registration lifetime (in seconds)
-			listening_port,// listening port (ephemeral...)
-			(char *) this->m_options->getDomain().c_str(),// endpoint domain
-			socket_protocol_type,// Socket protocol type: UDP or TCP...
-			socket_address_type,// Socket addressing type: IPv4 or IPv6
-			CONTEXT_ADDRESS_STRING// context address string (mbedConnectorInterface.h)
-	);
-
-	// bind LWIP network interface pointer...
-	if (__network_interface != NULL && this->m_endpoint_interface != NULL) {
-		this->logger()->log("Connector::Endpoint: binding LWIP network instance (Connector)...");
-		this->m_endpoint_interface->set_platform_network_handler(
-				(void *) __network_interface);
-	}
-}
-#endif
-
-// mbed-client: createEndpointSecurityInstance()
-M2MSecurity *Endpoint::createEndpointSecurityInstance() {
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-	// internalized... not used.
-	return NULL;
-#else
-	// Creates register server object with mbed device server address and other parameters
-	M2MSecurity *server = M2MInterfaceFactory::create_security(
-			M2MSecurity::M2MServer);
-	if (server != NULL) {
-		const String url = this->m_options->getConnectorURL();
-		server->set_resource_value(M2MSecurity::M2MServerUri, url);
-		server->set_resource_value(M2MSecurity::BootstrapServer, false);
-		server->set_resource_value(M2MSecurity::SecurityMode,
-				M2MSecurity::Certificate);
-		server->set_resource_value(M2MSecurity::ServerPublicKey,
-				this->m_options->getServerCertificate(),
-				this->m_options->getServerCertificateSize());
-		server->set_resource_value(M2MSecurity::PublicKey,
-				this->m_options->getClientCertificate(),
-				this->m_options->getClientCertificateSize());
-		server->set_resource_value(M2MSecurity::Secretkey,
-				this->m_options->getClientKey(),
-				this->m_options->getClientKeySize());
-	}
-	return server;
-#endif
-}
-
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-// mbed-cloud-client: Callback from mbed client stack if any error is encountered
+// Callback from mbed client stack if any error is encountered
 void Endpoint::on_error(int error_code) {
 	char *error = (char *) "No Error";
 	switch (error_code) {
@@ -493,95 +354,64 @@ void Endpoint::on_error(int error_code) {
 	printf("Connector::Endpoint(Cloud) Error(%x): %s\r\n", error_code, error);
 }
 
-// mbed-cloud-client: update_authorized
-void Endpoint::update_authorize(int32_t request) {
-	// simple debug for now... this will NOT authorize the update request...
-	printf("Connector::Endpoint(Cloud) Update Authorize: request: %d\n",
-			(int) request);
-}
-
-// mbed-cloud-client: update_progress
-void Endpoint::update_progress(uint32_t progress, uint32_t total) {
-	// simple debug for now...
-	printf("Connector::Endpoint(Cloud) Update Progress: (%d/%d)\n",
-			(int) progress, (int) total);
-}
-#endif
-
 // mbed-client: Callback from mbed client stack if any error is encountered
 void Endpoint::error(M2MInterface::Error error) {
-	switch (error) {
-	case M2MInterface::AlreadyExists:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::AlreadyExists");
-		break;
-	case M2MInterface::BootstrapFailed:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::BootstrapFailed");
-		break;
-	case M2MInterface::InvalidParameters:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::InvalidParameters");
-		break;
-	case M2MInterface::NotRegistered:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::NotRegistered");
-		break;
-	case M2MInterface::Timeout:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::Timeout");
-		break;
-	case M2MInterface::NetworkError:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::NetworkError");
-		break;
-	case M2MInterface::ResponseParseFailed:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::ResponseParseFailed");
-		break;
-	case M2MInterface::UnknownError:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::UnknownError");
-		break;
-	case M2MInterface::MemoryFail:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::MemoryFail");
-		break;
-	case M2MInterface::NotAllowed:
-		this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::NotAllowed");
-		break;
-	default:
-		break;
-	}
+    switch (error) {
+        case M2MInterface::AlreadyExists:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::AlreadyExists");
+                break;
+        case M2MInterface::BootstrapFailed:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::BootstrapFailed");
+                break;
+        case M2MInterface::InvalidParameters:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::InvalidParameters");
+                break;
+        case M2MInterface::NotRegistered:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::NotRegistered");
+                break;
+        case M2MInterface::Timeout:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::Timeout");
+                break;
+        case M2MInterface::NetworkError:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::NetworkError");
+                break;
+        case M2MInterface::ResponseParseFailed:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::ResponseParseFailed");
+                break;
+        case M2MInterface::UnknownError:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::UnknownError");
+                break;
+        case M2MInterface::MemoryFail:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::MemoryFail");
+                break;
+        case M2MInterface::NotAllowed:
+                this->logger()->log("Connector::Endpoint(ERROR): M2MInterface::NotAllowed");
+                break;
+        default:
+                break;
+        }
 }
 
 // re-register the endpoint
 void Endpoint::re_register_endpoint() {
 	if (this->m_endpoint_interface != NULL) {
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 		// DEBUG
 		this->logger()->log("Connector::Endpoint(Cloud): re-register endpoint...");
-#else
-		this->m_endpoint_interface->update_registration(
-				this->m_endpoint_security, this->m_options->getLifetime());
-#endif
 	}
 }
 
 // de-register endpoint
 void Endpoint::de_register_endpoint(void) {
 	if (this->m_endpoint_interface != NULL) {
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 		// DEBUG
 		this->logger()->log("Connector::Endpoint(Cloud): de-registering endpoint...");
 		this->m_endpoint_interface->close();
-#else
-		// de-register endpoint
-		this->logger()->log("Connector::Endpoint: de-registering endpoint...");
-		if (this->m_csi != NULL) {
-			this->m_csi->begin_object_unregistering((void *) this);
-		} else {
-			this->m_endpoint_interface->unregister_object(NULL);
-		}
-#endif
 	}
 }
 
 // register the endpoint
 void Endpoint::register_endpoint(M2MSecurity *endpoint_security,
 		M2MObjectList endpoint_objects) {
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 	if (this->m_endpoint_interface != NULL) {
 		this->logger()->log("Connector::Endpoint(Cloud): adding objects to endpoint...");
 		this->m_endpoint_interface->add_objects(endpoint_objects);
@@ -589,18 +419,8 @@ void Endpoint::register_endpoint(M2MSecurity *endpoint_security,
 		this->logger()->log("Connector::Endpoint(Cloud): registering endpoint...");
 		this->m_endpoint_interface->setup(__network_interface);
 	}
-#else
-	if (this->m_endpoint_interface != NULL && endpoint_security != NULL
-			&& endpoint_objects.size() > 0) {
-		// register  endpoint
-		this->logger()->log("Connector::Endpoint: registering endpoint...");
-		this->m_endpoint_interface->register_object(endpoint_security,
-				endpoint_objects);
-	}
-#endif
 }
 
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 // object registered
 void Endpoint::on_registered() {
 	if (__endpoint != NULL) {
@@ -621,10 +441,9 @@ void Endpoint::on_registration_updated() {
 void Endpoint::on_unregistered() {
 	if (__endpoint != NULL) {
 		printf("Connector::Endpoint(Cloud): on_unregistered()\r\n");
-		__endpoint->object_unregistered(__endpoint->getSecurityInstance());
+		__endpoint->object_unregistered(NULL);
 	}
 }
-#endif
 
 // object registered
 void Endpoint::object_registered(M2MSecurity *security,
@@ -725,9 +544,6 @@ void Endpoint::buildEndpoint() {
 
 	// make sure we have an endpoint interface...
 	if (this->getEndpointInterface() != NULL) {
-		// Create our server instance
-		this->setSecurityInstance(this->createEndpointSecurityInstance());
-
 		// We now have to bind our device resources
 		if (this->m_device_manager != NULL) {
 			// DEBUG

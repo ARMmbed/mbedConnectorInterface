@@ -46,7 +46,7 @@
  // observation task method
  void ThreadedResourceObserver::observation_task() {
      while(true) {
-         Thread::wait(this->getSleepTime());
+         ThisThread::sleep_for(this->getSleepTime());
          if (this->isObserving() == true && this->getResource() != NULL) {
              DynamicResource *res = this->getResource();
              if (res != NULL && res->isRegistered() == true) {

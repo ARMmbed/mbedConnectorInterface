@@ -29,26 +29,11 @@
 // Forward declarations of public functions in mbedEndpointNetwork
 #include "mbed-connector-interface/mbedEndpointNetworkImpl.h"
 
-// Enable/Disable easy-connect debugging
-#define EASY_CONNECT_DEBUG			false
+// MCC support
+#include "mcc_common_setup.h"
 
-// Network Selection (via easy-connect library now...)
-#include "easy-connect.h"
-#if MBED_CONF_APP_NETWORK_INTERFACE == WIFI_ESP8266
-#define NETWORK_TYPE			(char *)"WiFi-ESP8266"
-#elif MBED_CONF_APP_NETWORK_INTERFACE == WIFI_ODIN
-#define NETWORK_TYPE			(char *)"WiFi-ODIN"
-#elif MBED_CONF_APP_NETWORK_INTERFACE == ETHERNET
-#define NETWORK_TYPE			(char *)"Ethernet"
-#elif MBED_CONF_APP_NETWORK_INTERFACE == CELL
-#define NETWORK_TYPE			(char *)"Cellular"
-#elif MBED_CONF_APP_NETWORK_INTERFACE == MESH_LOWPAN_ND
-#define NETWORK_TYPE			(char *)"6LowPAN"
-#elif MBED_CONF_APP_NETWORK_INTERFACE == MESH_THREAD
-#define NETWORK_TYPE			(char *)"Thread"
-else
-#define NETWORK_TYPE			(char *)"UNKNOWN"
-#endif
+// Network Selection
+#define NETWORK_TYPE  (char *)"Automatic"
 
 // Logger instance
 extern Logger logger;
@@ -77,16 +62,11 @@ void start_endpoint_shutdown(void) {
 			logger.log("mbedEndpointNetwork(%s): shutdown requested. De-registering the endpoint...",NETWORK_TYPE);
 			ep->de_register_endpoint();
 		}
-		
-		// Clean up
-		if (ep != NULL) {
-			delete ep;
-			_endpoint_instance = NULL;
-		}
 	}
 	
 	// ready to shutdown...
 	logger.log("mbedEndpointNetwork(%s): endpoint shutdown. Bye!",NETWORK_TYPE);
+	while(true) {ThisThread::sleep_for(10000);}
 }
 	
 // setup shutdown button
@@ -129,7 +109,7 @@ void begin_main_loop(void)
 	
 	// enter our main loop (until the shutdown condition flags it...)
 	while(_shutdown_endpoint == false) {
-		Thread::wait(_main_loop_iteration_wait_ms);
+		ThisThread::sleep_for(_main_loop_iteration_wait_ms);
 		peform_main_loop_activity();
 	}
 	
@@ -156,42 +136,40 @@ void net_shutdown_endpoint() {
 void net_plumb_network(void *p) 
 {
     Connector::Endpoint *ep = NULL;
-    //Connector::Options *options = NULL;
     
-    // save 
+    // save our endpoint for later...
     _endpoint_instance = p;
     
-    // connected
+    // get our endpoint..
     if (p != NULL) {
 		ep = (Connector::Endpoint *)p;
-		//options = ep->getOptions();
 	}
-
-    // connect (use easy-connect now...)
-    if (__network_interface == NULL) {
-        __network_interface = easy_connect(EASY_CONNECT_DEBUG);
-    }
-
-	// check the connection status..
-	if (__network_interface != NULL) {
-		// success
-    	if (ep != NULL) {
-    		ep->isConnected(true);
-    	
-    		// Debug
-   			logger.log("mbedEndpointNetwork(%s): IP Address: %s",NETWORK_TYPE,__network_interface->get_ip_address());
-   		}
-   	}
-   	else {
-   		// connection error
-   		__network_interface = NULL;
-    	if (ep != NULL) {
-    		ep->isConnected(false);
+    
+    // call MCC to get us connected
+    if (!mcc_platform_init_connection()) 
+    {
+    	// connect (MCC-integrated in mbedOS 5.10+)
+    	if (__network_interface == NULL) 
+    	{
+        	__network_interface = (NetworkInterface *)mcc_platform_get_network_interface();
     	}
+
+		// if we are connected, we are ready... 
+		if (__network_interface != NULL) 
+		{
+			if (ep != NULL) 
+			{
+    			ep->isConnected(true);
     	
-    	// Debug
-   		logger.log("mbedEndpointNetwork(%s): CONNECTION FAILED",NETWORK_TYPE);
-   	}
+    			// Debug
+   				logger.log("mbedEndpointNetwork(%s): IP Address: %s",NETWORK_TYPE,__network_interface->get_ip_address());
+   			}
+   		}
+	}
+	else 
+	{
+		logger.log("mbedEndpointNetwork(%s): Connection to network FAILED",NETWORK_TYPE);
+	}
 }
 
 // finalize and run the endpoint main loop
@@ -208,11 +186,7 @@ void net_finalize_and_run_endpoint_main_loop(void *p)
 
 	// register the endpoint
 	logger.log("mbedEndpointNetwork(%s): registering endpoint...",NETWORK_TYPE); 
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
 	ep->register_endpoint(NULL,ep->getEndpointObjectList());
-#else
-	ep->register_endpoint(ep->getSecurityInstance(),ep->getEndpointObjectList());
-#endif
 	       
     // Begin the endpoint's main loop
     begin_main_loop();

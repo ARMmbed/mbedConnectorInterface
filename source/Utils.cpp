@@ -38,129 +38,41 @@ Connector::Endpoint *__endpoint = NULL;
 Connector::OptionsBuilder config;
 Connector::Options *options = NULL;
 
-// only for mbed-cloud-client
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-    // Mirror declarations from setup.cpp
-    #include "storage-selector/storage-selector.h"
-    FileSystem* fs = filesystem_selector();
-    BlockDevice* sd = NULL;
-    BlockDevice* arm_uc_blockdevice = storage_selector();
-    #include "mbed-trace/mbed_trace.h"
-    #include "mbed-trace-helper.h"
-    #include "factory_configurator_client.h"
-#endif // ENABLE_MBED_CLOUD_SUPPORT
-
-// initialize mbed trace
-void utils_init_mbed_trace() {
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-    // Create mutex for tracing to avoid broken lines in logs
-    if(!mbed_trace_helper_create_mutex()) {
-        logger.log("utils_init_mbed_trace: ERROR - Mutex creation for mbed_trace failed!");
-    }
-    
-    // Initialize mbed trace
-    mbed_trace_init();
-    mbed_trace_mutex_wait_function_set(mbed_trace_helper_mutex_wait);
-    mbed_trace_mutex_release_function_set(mbed_trace_helper_mutex_release);
-#endif
-}
-
-// reformat storage
-bool utils_reformat_storage() {
-// only for mbed-cloud-client
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-    int reformat_result = -1;
-    logger.log("utils_reformat_storage: Autoformatting the storage...");
-    if (sd) {
-        reformat_result = fs->reformat(sd);
-        if (reformat_result != 0) {
-            logger.log("utils_reformat_storage: Autoformatting failed with error %d", reformat_result);
-        }
-    }
-    return reformat_result;
-#endif
-    return false;
-}
-
-// reset storage
-void utils_reset_storage()
-{
-// only for mbed-cloud-client
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
-    logger.log("utils_reset_storage: resetting storage to an empty state...");
-    fcc_status_e delete_status = fcc_storage_delete();
-    if (delete_status != FCC_STATUS_SUCCESS) {
-        logger.log("Failed to delete storage - %d", delete_status);
-    }
-#endif
-}
+// MCC and mbed-trace support
+#include "mbed-trace/mbed_trace.h"
+#include "mbed-trace-helper.h"
+#include "application_init.h"
+#include "mcc_common_setup.h"
 
 // initialize the underlying platform
 bool utils_init_platform() {
-// only for mbed-cloud-client
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
     // initialize mbed-trace
-    utils_init_mbed_trace();
-
-    // Mirror invocations from initPlatform() within setup.cpp
-    sd = storage_selector();
+    application_init_mbed_trace();
     
-    if (sd) {
-        int sd_ret = sd->init();
-        if(sd_ret != BD_ERROR_OK) {
-            logger.log("utils_init_platform() - sd->init() failed with %d", sd_ret);
-            logger.log("SD card initialization failed. Verify that SD-card is attached.");
-            return false;
-        }
-    }
-    else {
-	logger.log("utils_init_platform() - SD storage selector initialized SUCCESS!");
+   	// Initialize storage
+	if (mcc_platform_storage_init() != 0) 
+	{
+        logger.log("utils_init_platform: Failed to initialize storage");
+        return false;
     }
 
-    // initialize FCC
-    logger.log("utils_init_platform: initializing FCC...");
-    fcc_status_e status = fcc_init();
-    if (status != FCC_STATUS_SUCCESS) {
-         logger.log("utils_init_platform: ERROR: mfcc_init failed with status=%d...", status);
-         return false;
+    // Initialize platform-specific components
+    if(mcc_platform_init() != 0) 
+    {
+        logger.log("utils_init_platform: ERROR - mcc_platform_init() failed!");
+        return false;
     }
 
-    // determine if we are already configured or not... if so, we are golden
-    int cf_status = fcc_verify_device_configured_4mbed_cloud();
-    if (cf_status != FCC_STATUS_SUCCESS) {
-       if (utils_reformat_storage() != 0) {
-           return false;
-        }
-        utils_reset_storage();
-    }
-#endif // ENABLE_MBED_CLOUD_SUPPORT
+    // Print platform information
+    mcc_platform_sw_build_info();
 
     // platform is initialized
-    logger.log("utils_init_platform(): platform initialized");
-    return true;
+    logger.log("utils_init_platform(): platform initialized... Starting FCC...");
+    return application_init();
 }
 
 // initialize the appropriate provisioning flow
 bool utils_init_provisioning_flow() {
-#ifdef MBED_CONF_APP_DEVELOPER_MODE
-   // Developer Mode
-   logger.log("utils_init_provisioning_flow: Start developer flow...");
-   fcc_status_e status = fcc_developer_flow();
-   if (status == FCC_STATUS_KCM_FILE_EXIST_ERROR) {
-          logger.log("utils_init_provisioning_flow: Developer credentials already exists (OK)...");
-   } else if (status != FCC_STATUS_SUCCESS) {
-          logger.log("utils_init_provisioning_flow: ERROR: Failed to load developer credentials");
-          return false;
-   }
-   int fc_status = fcc_verify_device_configured_4mbed_cloud();
-   if (fc_status != FCC_STATUS_SUCCESS) {
-           logger.log("utils_init_provisioning_flow: ERROR: Device not configured for mbed Cloud");
-           return false;
-    }
-#else
-    // Factory Mode
-    this->logger()->log("utils_init_provisioning_flow: non-developer factory flow chosen... continuing...");
-#endif
      return true;
 }
 
@@ -200,13 +112,11 @@ void utils_configure_endpoint(void *p)
     config.setWiFiAuthType(WIFI_NONE);      							// default: none
     config.setWiFiAuthKey((char *)WIFI_DEFAULT_AUTH_KEY);   			// default: changeme
     
-#ifdef ENABLE_MBED_CLOUD_SUPPORT
     // Default CoAP Connection Type (mbed Cloud R1.2+)
     config.setCoAPConnectionType(COAP_TCP);								// default CoAP Connection Type - TCP
-#else
+
     // Default CoAP Connection Type (Connector/mDS)
-    config.setCoAPConnectionType(COAP_UDP);								// default CoAP Connection Type - UDP
-#endif
+    // config.setCoAPConnectionType(COAP_UDP);								// default CoAP Connection Type - UDP
 
 	// Set the default IP Address Type
 #if MBED_CONF_APP_NETWORK_INTERFACE == MESH_LOWPAN_ND || MBED_CONF_APP_NETWORK_INTERFACE == MESH_THREAD

@@ -38,6 +38,9 @@
 // updater support
 #include "update_ui_example.h"
 
+// certificate callback support
+#include "certificate_enrollment_user_cb.h"
+
 // factory flow support
 #include "factory_configurator_client.h"
 
@@ -241,6 +244,8 @@ void Endpoint::createCloudEndpointInterface() {
 				// Update Progress Handler (optional, disabled by default)
 				this->m_endpoint_interface->set_update_progress_handler(&update_progress);
 #endif
+				// Add the certificate renewal callback 
+				this->m_endpoint_interface->on_certificate_renewal(certificate_renewal_cb);
 			}
 		} else {
 			if (platform_init) {

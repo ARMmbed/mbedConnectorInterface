@@ -244,8 +244,10 @@ void Endpoint::createCloudEndpointInterface() {
 				// Update Progress Handler (optional, disabled by default)
 				this->m_endpoint_interface->set_update_progress_handler(&update_progress);
 #endif
+#ifdef ADD_CERTIFICATE_RENEW_CB
 				// Add the certificate renewal callback 
 				this->m_endpoint_interface->on_certificate_renewal(certificate_renewal_cb);
+#endif
 			}
 		} else {
 			if (platform_init) {

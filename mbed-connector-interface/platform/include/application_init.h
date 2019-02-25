@@ -21,6 +21,13 @@
 #define APPLICATION_INIT_H
 
 /*
+ * Used to reformat the storage...
+ */
+#if MCI_REFORMAT_STORAGE
+    #define RESET_STORAGE  1
+#endif
+
+/*
  * Initializes tracing library.
  */
 

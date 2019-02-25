@@ -114,7 +114,7 @@ static NetworkInterface* network_interface=NULL;
 static BlockDevice* bd = NULL;
 #ifdef ARM_UC_USE_PAL_BLOCKDEVICE
 // Can be moved extern reference under update src. No reason keep here because get_default_instance is mbed-os interface.
-BlockDevice* arm_uc_blockdevice = BlockDevice::get_default_instance();
+//BlockDevice* arm_uc_blockdevice = BlockDevice::get_default_instance();
 #endif
 
 // blockdevice and filesystem pointers for storage

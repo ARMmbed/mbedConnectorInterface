@@ -71,14 +71,10 @@ void start_endpoint_shutdown(void) {
 	
 // setup shutdown button
 #if MBED_CONF_APP_SHUTDOWN_BUTTON_ENABLE == true
-#ifdef TARGET_K64F
 InterruptIn shutdown_button(MBED_CONF_APP_SHUTDOWN_PIN);
-#endif
 void configure_deregistration_button(void) {
-#ifdef TARGET_K64F
 	logger.log("mbedEndpointNetwork(%s): configuring de-registration button...",NETWORK_TYPE); 
 	shutdown_button.fall(&net_shutdown_endpoint);
-#endif
 }
 #endif
 

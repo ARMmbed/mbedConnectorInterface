@@ -23,6 +23,7 @@
 /*
  * Used to reformat the storage...
  */
+#include "mbed_cloud_client_user_config.h"
 #if MCI_REFORMAT_STORAGE
     #define RESET_STORAGE  1
 #endif
